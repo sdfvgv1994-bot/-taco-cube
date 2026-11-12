@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>魔術方塊公式轉動教學</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* 版面：上面一排公式分頁，左邊是可以拖的立體方塊，右邊是步驟和按鈕；手機疊成一欄。整頁固定深色，白色貼紙才看得清楚。 */
+  color-scheme: dark;
+  --bg: #101216;
+  --panel: #191c22;
+  --line: #2c313b;
+  --ink: #f1f2f4;
+  --quiet: #a3a9b5;
+  --accent: #f2c900;
+  --font-body: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  --font-mono: "IBM Plex Mono", "Consolas", monospace;
+  --s: 60px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.6; }
+.wrap { max-width: 1040px; margin: 0 auto; padding: 20px 16px 40px; display: flex; flex-direction: column; gap: 16px; }
+h1 { font-size: 22px; font-weight: 700; margin: 0; text-wrap: balance; }
+.lead { margin: 0; color: var(--quiet); font-size: 14px; }
+.methods { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 4px; }
+.meth { font: inherit; font-size: 14px; font-weight: 500; color: var(--quiet); background: transparent; border: 0; border-radius: 9px; padding: 8px 6px; cursor: pointer; }
+.meth[aria-selected="true"] { background: #2b303a; color: var(--ink); font-weight: 700; box-shadow: inset 0 -2px 0 var(--accent); }
+.meth:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+@media (max-width: 560px) { .methods { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.mnote { margin: 0; font-size: 14px; color: var(--quiet); }
+.part { font-size: 14px; color: var(--accent); margin-bottom: 2px; }
+.part:empty { display: none; }
+.mv.gap { margin-left: 10px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.tab { font: inherit; font-size: 14px; font-weight: 500; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; cursor: pointer; }
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: #17140a; font-weight: 700; }
+.main { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 760px) { .main { grid-template-columns: minmax(0, 1fr); } }
+.stage { background: #000; border: 1px solid var(--line); border-radius: 14px; height: 420px; position: relative; overflow: hidden; perspective: 1100px; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+.stage:active { cursor: grabbing; }
+.hint { position: absolute; left: 12px; bottom: 10px; font-size: 12px; color: var(--quiet); pointer-events: none; }
+.scene { position: absolute; left: 50%; top: 50%; width: 0; height: 0; transform-style: preserve-3d; }
+.cubie { position: absolute; width: var(--s); height: var(--s); left: calc(var(--s) / -2); top: calc(var(--s) / -2); transform-style: preserve-3d; }
+.face { position: absolute; inset: 0; background: #050505; backface-visibility: hidden; }
+.face i { position: absolute; inset: 6%; border-radius: 12%; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.panel h2 { font-size: 18px; margin: 0; font-weight: 700; text-wrap: balance; }
+.cases { display: flex; flex-wrap: wrap; gap: 6px; }
+.case { font: inherit; font-size: 13px; color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; cursor: pointer; }
+.case[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 700; }
+.case.mine::before { content: "●"; color: var(--accent); margin-right: 4px; font-size: 10px; vertical-align: 1px; }
+.case:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.hold { margin: 0; font-size: 14px; color: var(--quiet); }
+.moves { display: flex; flex-wrap: wrap; gap: 6px; }
+.mv { font-family: var(--font-mono); font-size: 15px; font-weight: 600; min-width: 36px; text-align: center; padding: 4px 6px; border-radius: 8px; border: 1px solid var(--line); color: var(--ink); background: transparent; }
+.mv.done { color: var(--quiet); opacity: 0.55; }
+.mv.cur { border-color: var(--accent); background: var(--accent); color: #17140a; }
+.now { border-left: 3px solid var(--accent); padding: 2px 0 2px 12px; }
+.now .big { font-size: 20px; font-weight: 700; }
+.now .big b { font-family: var(--font-mono); font-weight: 600; }
+.now .count { font-size: 13px; color: var(--quiet); font-variant-numeric: tabular-nums; }
+.ctrl { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn { font: inherit; font-size: 15px; font-weight: 500; color: var(--ink); background: #232730; border: 1px solid var(--line); border-radius: 10px; padding: 9px 14px; cursor: pointer; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #17140a; font-weight: 700; }
+.btn:disabled { opacity: 0.4; cursor: default; }
+.tab:focus-visible, .btn:focus-visible, input:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.opts { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; font-size: 14px; color: var(--quiet); }
+.opts label { display: flex; align-items: center; gap: 8px; }
+input[type="range"] { accent-color: var(--accent); width: 120px; }
+input[type="checkbox"] { accent-color: var(--accent); width: 18px; height: 18px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>魔術方塊公式轉動教學</h1>
+    <p class="lead">先選解法和步驟，再選你遇到的情況，按「下一步」看方塊怎麼轉。方塊一開始就擺在那個情況「做之前」的樣子。</p>
+    <p class="lead"><a href="formula.html" style="color:var(--accent)">看文字版：5 組公式解法</a></p>
+  </header>
+  <div class="methods" id="methods" role="tablist" aria-label="選解法"></div>
+  <p class="mnote" id="mnote"></p>
+  <div class="tabs" id="tabs" role="tablist" aria-label="選步驟"></div>
+  <div class="main">
+    <div class="stage" id="stage">
+      <div class="scene" id="scene"></div>
+      <div class="hint">按住方塊拖曳可以換角度看</div>
+    </div>
+    <section class="panel">
+      <h2 id="title"></h2>
+      <div class="cases" id="cases" aria-label="選情況"></div>
+      <p class="hold" id="hold"></p>
+      <div class="moves" id="moves"></div>
+      <div class="now">
+        <div class="part" id="part"></div>
+        <div class="big" id="nowText"></div>
+        <div class="count" id="count"></div>
+      </div>
+      <div class="ctrl">
+        <button class="btn primary" id="next" type="button">下一步</button>
+        <button class="btn" id="prev" type="button">上一步</button>
+        <button class="btn" id="play" type="button">自動播放</button>
+        <button class="btn" id="reset" type="button">重來</button>
+      </div>
+      <div class="opts">
+        <label for="speed">速度 <input type="range" id="speed" min="1" max="5" value="3"></label>
+        <label for="full"><input type="checkbox" id="full"> 顯示全部顏色</label>
+        <button class="btn" id="view" type="button">視角回正</button>
+      </div>
+    </section>
+  </div>
+</div>
+<script>
+// LOGIC-START
+const AX = { x: 0, y: 1, z: 2 };
+// 座標：x 往右、y 往下、z 朝自己。dir 是「順時針轉一下」在這個座標的角度正負。
+const FACES = {
+  R: { ax: 'x', layer: 1 }, L: { ax: 'x', layer: -1 },
+  U: { ax: 'y', layer: -1 }, D: { ax: 'y', layer: 1 },
+  F: { ax: 'z', layer: 1 }, B: { ax: 'z', layer: -1 },
+  y: { ax: 'y', layer: 0, whole: true, dir: -1 }
+};
+const A1 = "R' D' R D", A2 = "U R U' R' U' F' U F", A2L = "U' L' U L U F U' F'", A3 = "F R U R' U' F'", A4 = "R U R' U R U2 R' U", A5 = "U R U' L' U R' U' L";
+const rep = (a, n) => Array(n).fill(a).join(' ');
+const T7 = `${rep(A1, 2)} U ${rep(A1, 4)} U'`;
+const STEPS = [
+  { id: 's2', tab: '公式 1 白角', title: '第 2 步：白色角塊（公式 1）', scheme: 'white', mask: 'layer1', view: 'R', pre: '', cases: [
+    { name: '白色朝右', alg: A1, hold: '白色十字朝上拿，角塊在右前下方，白色朝右邊。做 1 次就上去了。' },
+    { name: '白色朝下', alg: rep(A1, 3), hold: '角塊在右前下方，白色朝下（底面）。要重複做 3 次。' },
+    { name: '白色朝前', alg: rep(A1, 5), hold: '角塊在右前下方，白色朝正面。要重複做 5 次。' },
+    { name: '卡在頂層・白朝右', alg: rep(A1, 2), hold: '角塊已經在右前上方，但白色朝右邊。做 2 次就翻好。' },
+    { name: '卡在頂層・白朝前', alg: rep(A1, 4), hold: '角塊已經在右前上方，但白色朝正面。做 4 次就翻好。' }
+  ] },
+  { id: 's3', tab: '公式 2 中層', title: '第 3 步：中間層邊塊（公式 2）', scheme: 'yellow', mask: 'f2l', view: 'R', pre: '', cases: [
+    { name: '要去右邊', alg: A2, hold: '黃色朝上拿。邊塊側面對到正面中心，朝上那格跟右邊中心同色，用右手版。' },
+    { name: '要去左邊', alg: A2L, view: 'L', hold: '朝上那格跟左邊中心同色，用左手版。這裡從左前方看。' },
+    { name: '邊塊在後面', alg: `U2 ${A2}`, hold: '邊塊不在正面：先轉頂層（這裡是 U2）讓它的側面對到正面中心，再做右手版。' },
+    { name: '卡在中層放反', alg: `${A2} U2 ${A2}`, hold: '邊塊在右邊中層但顏色反了：先做一次右手版把它擠到頂層，轉頂層對好，再做一次右手版。' }
+  ] },
+  { id: 's4', tab: '公式 3 黃十字', title: '第 4 步：黃色十字（公式 3）', scheme: 'yellow', mask: 'cross', view: 'R', pre: '', cases: [
+    { name: '你手上這顆', badge: true, alg: `U ${A3} ${A3}`, hold: '照片裡的情況：小 L 在前面和左邊。先轉一下頂層（U），讓 L 跑到後面和左邊，再做 2 次公式 3。' },
+    { name: '小 L（後、左）', alg: `${A3} ${A3}`, hold: '小 L 已經在後面和左邊：做一次變一字，一字剛好是橫的，再做一次變十字。' },
+    { name: '只有一點', alg: `${A3} U2 ${A3} ${A3}`, hold: '頂面只有中心一點：隨便拿先做一次，會變小 L；轉頂層把 L 放到後、左，再做 2 次。' },
+    { name: '一字（橫）', alg: A3, hold: '一字已經從左到右：直接做一次就是十字。' },
+    { name: '一字（直）', alg: `U ${A3}`, hold: '一字是前後直的：先轉一下頂層讓它變橫的，再做一次。' }
+  ] },
+  { id: 's5', tab: '公式 4 邊對色', title: '第 5 步：十字側面對顏色（公式 4）', scheme: 'yellow', mask: 'edges', view: 'L', pre: '', cases: [
+    { name: '相鄰兩個對', alg: A4, hold: '已經對色的兩個在後面和右邊，前面、左邊顏色相反：做一次就全對。這裡從左前方看。' },
+    { name: '對面兩個對', alg: `U' ${A4} U2 ${A4}`, hold: '對到的兩個是面對面：先隨便轉一下頂層、做一次，會變成相鄰兩個對；再轉頂層把它們放到後、右，再做一次。' }
+  ] },
+  { id: 's6', tab: '公式 5 角換位', title: '第 6 步：角塊送回位置（公式 5）', scheme: 'yellow', mask: 'all', view: 'R', pre: T7, cases: [
+    { name: '一個對・做 1 次', alg: A5, hold: '右前上方的角位置已經對，另外三個輪著換，做 1 次剛好到位。黃色有沒有朝上先不管。' },
+    { name: '一個對・做 2 次', alg: `${A5} ${A5}`, hold: '一樣右前上方的角是對的，但另外三個要轉的方向相反，做 1 次還沒好，再做 1 次。' },
+    { name: '一個都不對', alg: `${A5} y ${A5}`, hold: '四個角位置都不對：隨便拿先做一次，會出現一個對的；把整顆方塊轉一下（y），讓對的角到右前上方，再做一次。' }
+  ] },
+  { id: 's7', tab: '公式 1 翻角', title: '第 7 步：角塊翻成黃色朝上（又是公式 1）', scheme: 'yellow', mask: 'all', view: 'R', pre: '', cases: [
+    { name: '兩個相鄰', alg: T7, hold: "右邊兩個角沒朝上。每個角重複 R' D' R D 到朝上，中間只轉頂層（U）換角，方塊不換拿法。下面兩層中途會亂，做完會自己回來。" },
+    { name: '兩個對角', alg: `${rep(A1, 2)} U2 ${rep(A1, 4)} U2`, hold: '沒朝上的兩個角在對角：翻好第一個後轉 U2 把另一個送到右前上方。' },
+    { name: '三個（順）', alg: `${rep(A1, 2)} U ${rep(A1, 2)} U ${rep(A1, 2)} U2`, hold: '三個角沒朝上，每個都做 2 次就好。' },
+    { name: '三個（逆）', alg: `${rep(A1, 4)} U ${rep(A1, 4)} U ${rep(A1, 4)} U2`, hold: '三個角沒朝上，方向跟上一個相反，每個都要做 4 次。' },
+    { name: '四個都沒朝上', alg: `${rep(A1, 2)} U ${rep(A1, 4)} U ${rep(A1, 2)} U ${rep(A1, 4)} U`, hold: '四個角都沒朝上：一個一個來，每個做到黃色朝上（2 次或 4 次）再轉 U 換下一個。' }
+  ] }
+];
+const S8 = "R U R' U'";
+const P = (m, t) => ({ m, t });
+const STEPS_8355 = [
+  { id: 'k3', tab: '① 三個底角', title: '8355 第 2 步：底層三個角（只用 R U R\' U\'）', scheme: 'yellow', mask: 'bottom', view: 'R', pre: '', cases: [
+    { name: '白色朝右', parts: [P(S8, '角塊在右前上方，做 1 次就放好')], hold: '白色十字朝下拿。轉頂層把角塊放到它要去的位置正上方（右前上方），重複 R U R\' U\' 直到放好。白色朝右只要 1 次。' },
+    { name: '白色朝上', parts: [P(rep(S8, 3), '白色朝上要重複 3 次')], hold: '角塊在右前上方，白色朝上：重複 3 次。' },
+    { name: '白色朝前', parts: [P(rep(S8, 5), '白色朝前要重複 5 次')], hold: '角塊在右前上方，白色朝正面：重複 5 次。' },
+    { name: '白色朝前・快速版', parts: [P("U R U' R'", '反著做 1 次，等於正著做 5 次')], hold: '同上一個情況。R U R\' U\' 做 6 次會回到原點，所以做 5 次等於「反著做 1 次」：U R U\' R\'。' },
+    { name: '卡在槽裡・白朝右', parts: [P(rep(S8, 2), '角已經在位置上但翻錯，做 2 次')], hold: '角塊已經在右前下方的位置，但白色朝右邊：做 2 次就翻好。' },
+    { name: '卡在槽裡・白朝前', parts: [P(rep(S8, 4), '做 4 次')], hold: '角塊在右前下方的位置，白色朝正面：做 4 次。' }
+  ] },
+  { id: 'k3e', tab: '② 中層三邊', title: '8355 第 3 步：中層三個邊塊', scheme: 'yellow', mask: '8355e', view: 'R', pre: '', cases: [
+    { name: '要去右邊', parts: [P("R' U' R' U' R' U R U R", '把頂層右邊的邊塊送進右前中層')], hold: '第四個底角先空著（灰色），所以右前下方不用管。邊塊轉到右邊上方、朝上那格跟正面中心同色，就做這組。' },
+    { name: '要去左邊', view: 'L', parts: [P("L U L U L U' L' U' L'", '鏡像版，送進左前中層')], hold: '邊塊在左邊上方、朝上那格跟正面中心同色：做鏡像版。這裡從左前方看。' },
+    { name: '邊塊在後面', parts: [P('U', '先轉頂層，把邊塊送到右邊上方'), P("R' U' R' U' R' U R U R", '再送進去')], hold: '邊塊不在右邊上方：先轉頂層把它對好，再做。' }
+  ] },
+  { id: 'k5', tab: '③ 頂層邊＋最後兩邊', title: '8355 第 4 步：剩下的五個邊塊', scheme: 'yellow', mask: '8355u', view: 'R', pre: '', cases: [
+    { name: '用 R 開槽', parts: [P('R', 'R 把右前空槽轉上來，槽裡那顆頂層邊跟著上來'), P('U', 'U 把它送到對的位置，順便把中層邊帶到 R 正上方'), P("R'", "R' 把中層邊收進槽裡")], hold: '右前的角和邊都還空著。槽裡卡著一顆頂層的邊：用「開槽、轉頂層、關槽」把它換出來。' },
+    { name: '用 F\' 開槽', parts: [P("F'", "F' 從正面把空槽轉上來"), P("U'", "U' 把頂層邊送到位置，中層邊帶到正上方"), P('F', 'F 收回去')], hold: '同樣的想法，換成從正面開槽。哪個方向順手就用哪個。' },
+    { name: '最後兩邊・前色朝上', parts: [P("R U R' U R U R'", '把頂層前面和右前中層兩個邊對調'), P('U2', '轉頂層對齊')], hold: '只剩右前中層和頂層前面兩個邊互換：頂層前面那顆，朝上那格跟正面中心同色，就做這組。' },
+    { name: '最後兩邊・右色朝上', parts: [P("U'", '先轉頂層'), P("F' U' F U' F' U' F", '鏡像版對調'), P("U'", '轉頂層對齊')], hold: '同上，但朝上那格跟右邊中心同色：用鏡像版。' }
+  ] },
+  { id: 'k5c', tab: '④ 最後五角', title: '8355 第 5 步：最後五個角（又是 R U R\' U\'）', scheme: 'white', mask: 'all', view: 'R', pre: '', cases: [
+    { name: '暫存角換位', parts: [P(rep(S8, 3), '右前上方的「暫存角」剛好屬於正下方：重複 3 次放下去'), P("D'", '暫存角換成另一顆了：轉底層把它要去的位置轉到正下方'), P(rep(S8, 3), '再重複到它放好'), P('D', '底層轉回來')], hold: '整顆翻過來，沒好的角朝下。右前上方那顆當「暫存角」：轉底層讓它對到要去的位置，重複 R U R\' U\' 直到放好。上面兩層中途會亂，做完會自己回來。' },
+    { name: '兩個角要翻', parts: [P(rep(S8, 2), '翻好右前下的角（上面會先亂）'), P('D', '轉底層，把下一個要翻的角轉到右前下'), P(rep(S8, 4), '翻好它；前後加起來做滿 6 次，上面就回來了'), P("D'", '底層轉回來')], hold: '位置都對、只是有兩個角翻錯：跟層先法最後一步同樣的道理，只轉 R、U 和底層。' },
+    { name: '三個角要翻', parts: [P(rep(S8, 2), '翻第 1 個'), P('D', '換下一個'), P(rep(S8, 2), '翻第 2 個'), P('D', '換下一個'), P(rep(S8, 2), '翻第 3 個，加起來 6 次'), P('D2', '底層轉回來')], hold: '三個角都翻錯同一個方向：每個做 2 次。' }
+  ] }
+];
+const STEPS_F2L = [
+  { id: 'b1', tab: '基本型', title: '直覺 F2L：兩個基本型（先記這兩個）', scheme: 'mine', mask: 'f2l', view: 'R', pre: '', cases: [
+    { name: '基本型 1', parts: [P('R', 'R 把角轉到後面，跟邊塊接成一對'), P('U', 'U 把這一對送回右前上方'), P("R'", "R' 一起收進槽裡")], hold: '角在右前上方、黃色朝右，邊塊在後面上方。這是最常用的收尾，其他情況都想辦法變成它。' },
+    { name: '基本型 2', parts: [P("F'", "F' 把角轉到左前上方，跟邊塊接上"), P("U'", "U' 送回右前上方"), P('F', 'F 收進槽裡')], hold: '角在右前上方、黃色朝前，邊塊在左邊上方。基本型 1 從正面做的版本。' },
+    { name: '已經連成一對', parts: [P('U', 'U 先把這一對移開'), P('R', 'R 把空槽轉上來'), P("U'", "U' 把這一對推進空槽"), P("R'", "R' 收下去")], hold: '角和邊已經黏在一起，但方向不能直接塞：先移開、開槽、推進去、關槽。' }
+  ] },
+  { id: 'b2', tab: '角邊都在頂層', title: '直覺 F2L：角和邊都在頂層', scheme: 'mine', mask: 'f2l', view: 'R', pre: '', cases: [
+    { name: '角邊分開', parts: [P("U' R U' R'", '把角跟邊拆開、重新排好位置'), P('U', '變成基本型 1 的樣子'), P("R U R'", '基本型 1 收進去')], hold: '角在右前上方黃色朝右，邊塊緊貼在旁邊但顏色不對。先拆開重新對齊，再用基本型 1。' },
+    { name: '黃色朝上', parts: [P("R U2 R'", '黃色朝上不能直接塞：先讓角轉到左前上方、黃色轉到側面'), P("U'", '轉頂層，變成基本型 1'), P("R U R'", '收進去')], hold: '角的黃色朝上是最麻煩的。R U2 R\' 是把黃色「轉到側面」的固定招。' }
+  ] },
+  { id: 'b3', tab: '卡在槽裡', title: '直覺 F2L：角或邊卡在槽裡', scheme: 'mine', mask: 'f2l', view: 'R', pre: '', cases: [
+    { name: '角卡在槽裡', parts: [P("R U' R'", '先把角拿出來，黃色會朝前'), P('U', '轉頂層，角和邊在左前上方接成一對'), P("R U' R'", '開槽、推進去、關槽')], hold: '角在右前下方的位置但翻錯。卡住的塊一律先「拿出來」，再當成頂層的情況做。' },
+    { name: '邊卡在槽裡', parts: [P("R U R' U'", '把邊拿出來，角塞下去'), P("R U R' U'", '再一次，角拿出來、黃色轉到右邊'), P("R U R'", '變成基本型 1，收進去')], hold: '邊在槽裡是對的，但角在頂層黃色朝上。先用 R U R\' U\' 把它們拆出來重新配對。' },
+    { name: '邊在槽裡放反', parts: [P("U F' U' F", '從正面把反掉的邊拿出來'), P("U'", '轉頂層，變成基本型 1'), P("R U R'", '收進去')], hold: '邊在槽裡但兩個顏色反了，角在右前上方黃色朝右。一樣先拿出來，再用基本型。' }
+  ] }
+];
+const UA = "R U' R U R U R U' R' U' R2";
+const FISH = { RF: "R U R' U R U2 R'", LF: "L' U' L U' L' U2 L", RB: "R U2 R' U' R U' R'", LB: "L' U2 L U L' U L" };
+const STEPS_MINE = [
+  { id: 'y2', tab: '① 中層邊塊', title: '你的第 2 層：中層邊塊（左右兩版）', scheme: 'mine', mask: 'f2l', view: 'R', pre: '', cases: [
+    { name: '要去右邊', parts: [P("U R U' R' U' F' U F", '右手版')], hold: '白色朝上、黃色在底。找頂層沒有白色的邊塊，側面對到同色中心，朝上那格跟右邊中心同色就用右手版。' },
+    { name: '要去左邊', view: 'L', parts: [P("U' L' U L U F U' F'", '左手版')], hold: '朝上那格跟左邊中心同色，用左手版。這裡從左前方看。' },
+    { name: '卡在中層放反', parts: [P("U R U' R' U' F' U F", '先做一次把它擠到頂層'), P('U2', '轉頂層對好'), P("U R U' R' U' F' U F", '再塞回去')], hold: '邊塊在中層但顏色反了：先擠出來，再當成頂層的情況做。' }
+  ] },
+  { id: 'y3', tab: '② 頂面十字', title: '你的頂面十字：F R U R\' U\' F\' 做 1～3 次', scheme: 'mine', mask: 'cross', view: 'R', pre: '', cases: [
+    { name: '一點', parts: [P("F R U R' U' F'", '第 1 次：變 L'), P('U2', '轉頂層，L 放後面和左邊'), P("F R U R' U' F'", '第 2 次：變一字'), P("F R U R' U' F'", '第 3 次：變十字')], hold: '你原本的做法：一點 → L → 一字 → 十字。' },
+    { name: 'L', parts: [P("F R U R' U' F'", '變一字'), P("F R U R' U' F'", '變十字')], hold: 'L 放在後面和左邊，做 2 次。' },
+    { name: '一字', parts: [P("F R U R' U' F'", '直接變十字')], hold: '一字橫著放，做 1 次。' },
+    { name: 'L・省步版', parts: [P("F U R U' R' F'", '中間 R、U 對調，L 直接變十字')], hold: '同樣 L 放後面和左邊。頭尾的 F、F\' 不變，中間改成 U R U\' R\'，省一整組。' },
+    { name: '一點・省步版', parts: [P("F R U R' U' F'", '先變 L'), P('U2', 'L 放到後、左'), P("F U R U' R' F'", '省步版直接十字')], hold: '一點從 3 次變 2 次。' }
+  ] },
+  { id: 'y4', tab: '③ 頂面全白（魚）', title: '你的頂面全白：魚形公式', scheme: 'mine', mask: 'top', view: 'R', pre: '', cases: [
+    { name: '魚頭左前', parts: [P(FISH.RF, '右手魚')], hold: '魚頭（白色朝上的角）在左前，右前角的白色朝你。灰色是這一步不用看的顏色。' },
+    { name: '魚頭右前', parts: [P(FISH.LF, '左手魚')], hold: '魚頭在右前，左前角的白色朝你。' },
+    { name: '魚頭右後', parts: [P(FISH.RB, '右手魚倒著做')], hold: '魚頭在右後（你說的右上），左前角的白色朝你。' },
+    { name: '魚頭左後', parts: [P(FISH.LB, '左手魚倒著做')], hold: '魚頭在左後（左上），右前角的白色朝你。' },
+    { name: '沒有角朝上', parts: [P(FISH.RF, '右手魚做一次，會出現魚'), P(FISH.RF, '魚頭剛好在左前，再做一次')], hold: '四個角白色都朝側面：前面兩個朝你、後面兩個朝後。右手魚連做 2 次。' },
+    { name: '兩個角朝上', parts: [P(FISH.RF, '右手魚做一次，會出現魚'), P(FISH.LF, '魚頭在右前，換左手魚')], hold: '右邊兩個角白色朝上，左邊兩個白色朝左。先做右手魚，變成魚頭在右前，再接左手魚。' }
+  ] },
+  { id: 'y5', tab: '④ 角換位', title: '你的角換位：車燈放右邊', scheme: 'mine', mask: 'llc', view: 'R', pre: '', cases: [
+    { name: '有車燈', parts: [P("R U' L' U R' U' L", '你的換角：做完會變成魚'), P(FISH.LF, '一定是左手魚，直接接')], hold: '車燈（側面兩個角同色）放右邊。頂層的邊塊先灰掉，這一步只看角。' },
+    { name: '有車燈・省步版', parts: [P("R U' L' U R'", '前半段照舊'), P('U2', '原本的 U\' L、L\' U\' 抵消合併成 U2'), P("L U' L' U2 L", '後半段')], hold: '結果跟上一個完全一樣，14 下變 11 下。' },
+    { name: '沒有車燈', parts: [P("R U' L' U R' U2 L U' L' U2 L", '隨便拿做一次，車燈就出現'), P('U2', '轉頂層，把車燈放到右邊'), P("R U' L' U R' U2 L U' L' U2 L", '再做一次')], hold: '四面都沒有同色的兩個角：隨便拿先做一次。' },
+    { name: '你的另一招', parts: [P("L'", '移開左邊'), P("R U R' U'", '動右邊'), P('L', '左邊轉回來'), P("U R U' R'", '右邊還原')], hold: '你最早傳的那組：右前角不動，另外三個角輪著換位（角會歪掉）。拆開就是「交換子」的四段。' }
+  ] },
+  { id: 'y6', tab: '⑤ 邊換位', title: '你的最後一步：頂層邊塊', scheme: 'mine', mask: 'all', view: 'R', pre: '', cases: [
+    { name: '三個邊換位', parts: [P(UA, '已經好的那面放後面，做一次')], hold: '有一面完整、另外三個邊輪著錯：完整那面放後面。' },
+    { name: '三個邊・反方向', parts: [P(UA, '做一次，方向反了還沒好'), P(UA, '同一組再做一次')], hold: '做完沒好，代表要往反方向轉：同樣拿法再做一次。' },
+    { name: '四個都錯・對面色', parts: [P(UA, '隨便拿做一次，變成三個邊的情況'), P('y', '整顆轉，讓已經好的那面到後面'), P(UA, '再做一次')], hold: '每一面中間都是對面的顏色。懶人做法：不用背新的。' },
+    { name: '四個都錯・隔壁色', parts: [P(UA, '隨便拿做一次'), P('y2', '已經好的那面轉到後面'), P(UA, '做一次，方向反了'), P(UA, '再做一次')], hold: '每一面中間都是隔壁的顏色。一樣用三邊公式收尾。' },
+    { name: '對面色・專門公式', parts: [P('R2 U2 R U2 R2 U2 R2 U2 R U2 R2', '一次解完')], hold: '想快的話：只用 R 和 U，除了兩下單獨的 R，其他都是 R2、U2 交錯。' },
+    { name: '隔壁色・專門公式', parts: [P("R' U' R U'", '第 1 段'), P("R U R U'", '第 2 段'), P("R' U R U", '第 3 段'), P("R2 U' R' U2", '第 4 段：最後 U2 把頂層轉回來')], hold: '每一面中間都是隔壁色。拿法：正面中間那格跟「左邊中心」同色。中途下面兩層會亂，一定要 16 下全部做完才會回來。' }
+  ] }
+];
+const METHODS = [
+  { id: 'lbl', name: '層先法・5 組', note: '你一開始學的方法：一層一層解，公式最好懂。', steps: STEPS },
+  { id: 'm8355', name: '8355・1 組', note: '台灣許技江發明。主要只靠 R U R\' U\' 一組，加上中層邊和最後兩邊的小步驟；公式最少，但要多動腦、步數多，不算快。第 1 步白色十字跟層先法一樣自己做。', steps: STEPS_8355 },
+  { id: 'mine', name: '你的解法', note: '你自己的流程：白色朝上、黃色做底（底層自己拼）。顏色照你的方塊：前綠、右紅。每一步放你原本的公式，再加上「省步版」。', steps: STEPS_MINE },
+  { id: 'f2l', name: '直覺 F2L・速解', note: '一次做好兩層：底下只先做黃色十字，然後角（有黃色的）和邊（沒有白色的）在頂層配成一對，一起塞進槽裡，做 4 次兩層就好了。取代你原本「先拼底面、再塞中層邊」。不用背，所有情況都是「拆成基本型 1、2」。顏色照你的方塊，都以右前的槽示範。', steps: STEPS_F2L }
+];
+for (const m of METHODS) for (const s of m.steps) for (const c of s.cases) if (c.parts) c.alg = c.parts.map(x => x.m).join(' ');
+const SCHEMES = {
+  yellow: { U: '#f2c900', D: '#ffffff', F: '#2e9e4f', B: '#1a73e8', R: '#f57c00', L: '#d93025' },
+  mine: { U: '#ffffff', D: '#f2c900', F: '#2e9e4f', B: '#1a73e8', R: '#d93025', L: '#f57c00' },
+  white: { U: '#ffffff', D: '#f2c900', F: '#1a73e8', B: '#2e9e4f', R: '#f57c00', L: '#d93025' }
+};
+const GREY = '#4a4d55';
+function rotMat(ax, q) {
+  const k = ((q % 4) + 4) % 4, c = [1, 0, -1, 0][k], s = [0, 1, 0, -1][k];
+  if (ax === 'x') return [[1, 0, 0], [0, c, -s], [0, s, c]];
+  if (ax === 'y') return [[c, 0, s], [0, 1, 0], [-s, 0, c]];
+  return [[c, -s, 0], [s, c, 0], [0, 0, 1]];
+}
+function mulMM(a, b) { return a.map(r => [0, 1, 2].map(j => r[0] * b[0][j] + r[1] * b[1][j] + r[2] * b[2][j])); }
+function mulMV(a, v) { return a.map(r => r[0] * v[0] + r[1] * v[1] + r[2] * v[2]); }
+function parseMove(tok) {
+  const f = FACES[tok[0]], suf = tok.slice(1);
+  let q = f.whole ? f.dir : f.layer; // 順時針一下的方向剛好等於那一層的座標正負；y 跟 U 同方向
+  if (suf === "'") q = -q; else if (suf === '2') q = 2 * q;
+  return { tok, ax: f.ax, layer: f.layer, whole: !!f.whole, q };
+}
+function invTok(tok) { return tok.endsWith("'") ? tok[0] : tok.endsWith('2') ? tok : tok + "'"; }
+function parseAlg(s) { return s.trim() ? s.trim().split(/\s+/) : []; }
+function invAlg(toks) { return toks.slice().reverse().map(invTok); }
+function newCubies() {
+  const list = [];
+  for (let x = -1; x <= 1; x++) for (let y = -1; y <= 1; y++) for (let z = -1; z <= 1; z++)
+    list.push({ home: [x, y, z], p: [x, y, z], M: [[1, 0, 0], [0, 1, 0], [0, 0, 1]] });
+  return list;
+}
+function applyMove(cubies, mv) {
+  const Q = rotMat(mv.ax, mv.q), i = AX[mv.ax];
+  for (const c of cubies) if (mv.whole || c.p[i] === mv.layer) { c.p = mulMV(Q, c.p); c.M = mulMM(Q, c.M); }
+}
+function stickerShown(home, faceKey, mask) {
+  const topLayer = home[1] === -1, n = Math.abs(home[0]) + Math.abs(home[1]) + Math.abs(home[2]);
+  if (mask === 'all' || n === 1) return true;
+  if (mask === 'layer1') return topLayer;
+  if (mask === 'f2l') return !topLayer;
+  if (mask === 'cross') return !topLayer || (n === 2 && faceKey === 'U');
+  if (mask === 'edges') return !topLayer || n === 2;
+  const dfr = home[0] === 1 && home[1] === 1 && home[2] === 1;
+  if (mask === 'bottom') return home[1] === 1;
+  if (mask === 'top') return !topLayer || faceKey === 'U';
+  if (mask === 'llc') return !topLayer || n === 3 || faceKey === 'U';
+  if (mask === '8355e') return !topLayer && !dfr;
+  if (mask === '8355u') return n === 2 || (n === 3 && home[1] === 1 && !dfr);
+  return true;
+}
+function setupState(step, cs) {
+  const cubies = newCubies();
+  for (const t of parseAlg(step.pre)) applyMove(cubies, parseMove(t));
+  for (const t of invAlg(parseAlg(cs.alg))) applyMove(cubies, parseMove(t));
+  return cubies;
+}
+// LOGIC-END
+
+const WORDS = {
+  "R": '右面往上推', "R'": '右面往下拉', "R2": '右面轉兩下',
+  "L": '左面往下拉', "L'": '左面往上推', "L2": '左面轉兩下',
+  "U": '上面往左撥', "U'": '上面往右撥', "U2": '上面轉兩下',
+  "D": '底面往右撥', "D'": '底面往左撥', "D2": '底面轉兩下',
+  "F": '正面順時針轉', "F'": '正面逆時針轉', "F2": '正面轉兩下',
+  "B": '背面順時針轉', "B'": '背面逆時針轉', "B2": '背面轉兩下',
+  "y": '整顆方塊往左轉', "y'": '整顆方塊往右轉', "y2": '整顆方塊轉半圈'
+};
+const FACE_CSS = {
+  F: 'translateZ(calc(var(--s) / 2))',
+  B: 'rotateY(180deg) translateZ(calc(var(--s) / 2))',
+  R: 'rotateY(90deg) translateZ(calc(var(--s) / 2))',
+  L: 'rotateY(-90deg) translateZ(calc(var(--s) / 2))',
+  U: 'rotateX(90deg) translateZ(calc(var(--s) / 2))',
+  D: 'rotateX(-90deg) translateZ(calc(var(--s) / 2))'
+};
+const $ = id => document.getElementById(id);
+const stage = $('stage'), scene = $('scene');
+let method = METHODS[0], step = STEPS[0], kase = step.cases[0], cubies = [], toks = [], idx = 0, busy = false, playing = false, S = 60;
+let rx = -26, ry = -36;
+
+function baseT(c) {
+  const M = c.M, p = c.p;
+  return `matrix3d(${M[0][0]},${M[1][0]},${M[2][0]},0,${M[0][1]},${M[1][1]},${M[2][1]},0,${M[0][2]},${M[1][2]},${M[2][2]},0,${p[0] * S},${p[1] * S},${p[2] * S},1)`;
+}
+function paint() { for (const c of cubies) c.el.style.transform = baseT(c); }
+function setView() { scene.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg)`; }
+function fit() {
+  S = Math.max(34, Math.min(62, Math.floor(stage.clientWidth / 5.6)));
+  stage.style.setProperty('--s', S + 'px');
+  paint();
+}
+function build() {
+  scene.textContent = '';
+  const colors = SCHEMES[step.scheme], full = $('full').checked;
+  for (const c of cubies) {
+    const el = document.createElement('div');
+    el.className = 'cubie';
+    const outer = { R: c.home[0] === 1, L: c.home[0] === -1, D: c.home[1] === 1, U: c.home[1] === -1, F: c.home[2] === 1, B: c.home[2] === -1 };
+    for (const k of Object.keys(FACE_CSS)) {
+      const f = document.createElement('div');
+      f.className = 'face';
+      f.style.transform = FACE_CSS[k];
+      if (outer[k]) {
+        const st = document.createElement('i');
+        st.style.background = (full || stickerShown(c.home, k, step.mask)) ? colors[k] : GREY;
+        f.appendChild(st);
+      }
+      el.appendChild(f);
+    }
+    c.el = el;
+    scene.appendChild(el);
+  }
+  paint();
+}
+function renderPanel() {
+  $('title').textContent = step.title;
+  $('hold').textContent = kase.hold;
+  const cb = $('cases');
+  cb.textContent = '';
+  step.cases.forEach(c => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'case' + (c.badge ? ' mine' : '');
+    b.setAttribute('aria-pressed', String(c === kase));
+    b.textContent = c.name;
+    b.addEventListener('click', () => { if (!busy) load(step, c); });
+    cb.appendChild(b);
+  });
+  const box = $('moves');
+  box.textContent = '';
+  const starts = new Set(), partAt = [];
+  if (kase.parts) { let n = 0; kase.parts.forEach((pt, j) => { starts.add(n); const k = parseAlg(pt.m).length; for (let q = 0; q < k; q++) partAt.push(j); n += k; }); }
+  toks.forEach((t, i) => {
+    const s = document.createElement('span');
+    s.className = 'mv' + (i < idx ? ' done' : i === idx ? ' cur' : '') + (i > 0 && starts.has(i) ? ' gap' : '');
+    s.textContent = t;
+    box.appendChild(s);
+  });
+  const pi = idx < toks.length ? partAt[idx] : partAt[toks.length - 1];
+  $('part').textContent = kase.parts && pi !== undefined ? `第 ${pi + 1} 段：${kase.parts[pi].t}` : '';
+  const now = $('nowText');
+  now.textContent = '';
+  if (idx < toks.length) {
+    now.append('下一下：');
+    const b = document.createElement('b');
+    b.textContent = toks[idx];
+    now.append(b, '　' + WORDS[toks[idx]]);
+  } else {
+    now.textContent = '做完了';
+  }
+  $('count').textContent = `第 ${idx} / ${toks.length} 下`;
+  $('next').disabled = idx >= toks.length;
+  $('prev').disabled = idx <= 0;
+  $('play').textContent = playing ? '暫停' : '自動播放';
+}
+function viewOf() { return kase.view || step.view; }
+function load(s, c) {
+  playing = false;
+  method = METHODS.find(m => m.steps.includes(s));
+  step = s;
+  kase = c || s.cases[0];
+  toks = parseAlg(kase.alg);
+  idx = 0;
+  cubies = setupState(step, kase);
+  ry = viewOf() === 'L' ? 36 : -36; rx = -26;
+  setView();
+  build();
+  renderPanel();
+  renderTabs();
+}
+function duration() {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return 0;
+  return [900, 650, 450, 300, 180][Number($('speed').value) - 1];
+}
+function turn(tok) {
+  return new Promise(done => {
+    const mv = parseMove(tok), i = AX[mv.ax];
+    const sel = cubies.filter(c => c.p[i] === mv.layer);
+    const total = mv.q * 90, ms = duration() * (Math.abs(mv.q) === 2 ? 1.5 : 1), t0 = performance.now();
+    const fn = 'rotate' + mv.ax.toUpperCase();
+    const frame = now => {
+      const u = ms ? Math.min(1, (now - t0) / ms) : 1, e = u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
+      if (u < 1) {
+        for (const c of sel) c.el.style.transform = `${fn}(${total * e}deg) ${baseT(c)}`;
+        requestAnimationFrame(frame);
+      } else {
+        applyMove(cubies, mv);
+        paint();
+        done();
+      }
+    };
+    requestAnimationFrame(frame);
+  });
+}
+async function next() {
+  if (busy || idx >= toks.length) return;
+  busy = true;
+  await turn(toks[idx]);
+  idx++;
+  busy = false;
+  renderPanel();
+}
+async function prev() {
+  if (busy || idx <= 0) return;
+  busy = true;
+  await turn(invTok(toks[idx - 1]));
+  idx--;
+  busy = false;
+  renderPanel();
+}
+async function play() {
+  if (playing) { playing = false; renderPanel(); return; }
+  if (idx >= toks.length) load(step, kase);
+  playing = true;
+  renderPanel();
+  while (playing && idx < toks.length) {
+    await next();
+    await new Promise(r => setTimeout(r, 220));
+  }
+  playing = false;
+  renderPanel();
+}
+
+const methodsEl = $('methods');
+for (const m of METHODS) {
+  const b = document.createElement('button');
+  b.className = 'meth';
+  b.type = 'button';
+  b.setAttribute('role', 'tab');
+  b.dataset.id = m.id;
+  b.textContent = m.name;
+  b.addEventListener('click', () => { if (!busy && m !== method) load(m.steps[0], m.steps[0].cases[0]); });
+  methodsEl.appendChild(b);
+}
+function renderTabs() {
+  document.querySelectorAll('.meth').forEach(b => b.setAttribute('aria-selected', String(b.dataset.id === method.id)));
+  $('mnote').textContent = method.note;
+  const tabs = $('tabs');
+  tabs.textContent = '';
+  for (const d of method.steps) {
+    const b = document.createElement('button');
+    b.className = 'tab';
+    b.type = 'button';
+    b.setAttribute('role', 'tab');
+    b.setAttribute('aria-selected', String(d === step));
+    b.textContent = d.tab;
+    b.addEventListener('click', () => { if (!busy) load(d, d.cases[0]); });
+    tabs.appendChild(b);
+  }
+}
+$('next').addEventListener('click', () => { playing = false; next(); });
+$('prev').addEventListener('click', () => { playing = false; prev(); });
+$('play').addEventListener('click', play);
+$('reset').addEventListener('click', () => { if (!busy) load(step, kase); });
+$('full').addEventListener('change', () => { if (!busy) build(); });
+$('view').addEventListener('click', () => { ry = viewOf() === 'L' ? 36 : -36; rx = -26; setView(); });
+
+let drag = null;
+stage.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY }; stage.setPointerCapture(e.pointerId); });
+stage.addEventListener('pointermove', e => {
+  if (!drag) return;
+  ry += (e.clientX - drag.x) * 0.5;
+  rx = Math.max(-85, Math.min(85, rx - (e.clientY - drag.y) * 0.5));
+  drag = { x: e.clientX, y: e.clientY };
+  setView();
+});
+const endDrag = () => { drag = null; };
+stage.addEventListener('pointerup', endDrag);
+stage.addEventListener('pointercancel', endDrag);
+window.addEventListener('resize', fit);
+
+load(STEPS_MINE[0], STEPS_MINE[0].cases[0]);
+fit();
+</script>
+</body>
+</html>
